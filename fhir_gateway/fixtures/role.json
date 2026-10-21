@@ -1,0 +1,9 @@
+[
+  {
+    "doctype": "Role",
+    "name": "FHIR Integration",
+    "role_name": "FHIR Integration",
+    "desk_access": 0,
+    "custom": 1
+  }
+]

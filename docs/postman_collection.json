@@ -1,0 +1,196 @@
+{
+  "info": {
+    "name": "FHIR Gateway",
+    "description": "Read-only FHIR R4 API over Frappe Healthcare's Patient/Encounter/Observation data. Fill in base_url/api_key/api_secret under this collection's Variables tab before running.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      { "key": "key", "value": "Authorization", "type": "string" },
+      { "key": "value", "value": "token {{api_key}}:{{api_secret}}", "type": "string" },
+      { "key": "in", "value": "header", "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://frappehealth.localhost:8081" },
+    { "key": "api_key", "value": "" },
+    { "key": "api_secret", "value": "" },
+    { "key": "patient_id", "value": "", "description": "Fill after running 'Search Patient' once" }
+  ],
+  "item": [
+    {
+      "name": "CapabilityStatement (no auth)",
+      "request": {
+        "method": "GET",
+        "auth": { "type": "noauth" },
+        "header": [{ "key": "Accept", "value": "application/fhir+json" }],
+        "url": {
+          "raw": "{{base_url}}/fhir/metadata",
+          "host": ["{{base_url}}"],
+          "path": ["fhir", "metadata"]
+        }
+      }
+    },
+    {
+      "name": "Search Patient",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/fhir+json" }],
+        "url": {
+          "raw": "{{base_url}}/fhir/Patient?_count=5",
+          "host": ["{{base_url}}"],
+          "path": ["fhir", "Patient"],
+          "query": [{ "key": "_count", "value": "5" }]
+        }
+      }
+    },
+    {
+      "name": "Search Patient by identifier",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/fhir+json" }],
+        "url": {
+          "raw": "{{base_url}}/fhir/Patient?identifier={{patient_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["fhir", "Patient"],
+          "query": [{ "key": "identifier", "value": "{{patient_id}}" }]
+        }
+      }
+    },
+    {
+      "name": "Read Patient by id",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/fhir+json" }],
+        "url": {
+          "raw": "{{base_url}}/fhir/Patient/{{patient_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["fhir", "Patient", "{{patient_id}}"]
+        }
+      }
+    },
+    {
+      "name": "Search Encounter by patient",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/fhir+json" }],
+        "url": {
+          "raw": "{{base_url}}/fhir/Encounter?patient=Patient/{{patient_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["fhir", "Encounter"],
+          "query": [{ "key": "patient", "value": "Patient/{{patient_id}}" }]
+        }
+      }
+    },
+    {
+      "name": "Search Observation by patient",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/fhir+json" }],
+        "url": {
+          "raw": "{{base_url}}/fhir/Observation?patient=Patient/{{patient_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["fhir", "Observation"],
+          "query": [{ "key": "patient", "value": "Patient/{{patient_id}}" }]
+        }
+      }
+    },
+    {
+      "name": "Search Practitioner",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/fhir+json" }],
+        "url": {
+          "raw": "{{base_url}}/fhir/Practitioner?_count=5",
+          "host": ["{{base_url}}"],
+          "path": ["fhir", "Practitioner"],
+          "query": [{ "key": "_count", "value": "5" }]
+        }
+      }
+    },
+    {
+      "name": "Search MedicationRequest by patient",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/fhir+json" }],
+        "url": {
+          "raw": "{{base_url}}/fhir/MedicationRequest?patient=Patient/{{patient_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["fhir", "MedicationRequest"],
+          "query": [{ "key": "patient", "value": "Patient/{{patient_id}}" }]
+        }
+      }
+    },
+    {
+      "name": "Search DiagnosticReport by patient",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/fhir+json" }],
+        "url": {
+          "raw": "{{base_url}}/fhir/DiagnosticReport?patient=Patient/{{patient_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["fhir", "DiagnosticReport"],
+          "query": [{ "key": "patient", "value": "Patient/{{patient_id}}" }]
+        }
+      }
+    },
+    {
+      "name": "Negative: no Authorization header",
+      "request": {
+        "method": "GET",
+        "auth": { "type": "noauth" },
+        "header": [{ "key": "Accept", "value": "application/fhir+json" }],
+        "url": {
+          "raw": "{{base_url}}/fhir/Patient/{{patient_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["fhir", "Patient", "{{patient_id}}"]
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('401 Unauthorized with OperationOutcome', function () {",
+              "    pm.response.to.have.status(401);",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.resourceType).to.eql('OperationOutcome');",
+              "    pm.expect(body.issue[0].code).to.eql('login');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Negative: unsupported resource type",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/fhir+json" }],
+        "url": {
+          "raw": "{{base_url}}/fhir/MedicationRequest",
+          "host": ["{{base_url}}"],
+          "path": ["fhir", "MedicationRequest"]
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('404 Not Supported with OperationOutcome', function () {",
+              "    pm.response.to.have.status(404);",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.resourceType).to.eql('OperationOutcome');",
+              "    pm.expect(body.issue[0].code).to.eql('not-supported');",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

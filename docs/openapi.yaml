@@ -1,0 +1,391 @@
+openapi: 3.0.3
+info:
+  title: FHIR Gateway
+  version: "0.1.0"
+  description: >
+    A FHIR R4 REST API over Frappe Healthcare's clinical data (Patient, Encounter, Observation --
+    federated with Vital Signs, see below -- Practitioner, MedicationRequest, DiagnosticReport),
+    for consumption by external systems such as OpenHIM. Read-only -- see the app's README for
+    scope and what's explicitly not implemented yet (writes, full FHIR search grammar,
+    versioning/ETags, Condition -- healthcare has no standalone per-patient diagnosis doctype to
+    map it from, only a child table inside Patient Encounter).
+
+    Observation is a federated resource type: healthcare's `Vital Signs` doctype is a separate
+    table but is genuinely an Observation in FHIR's model (category `vital-signs`), so
+    `/fhir/Observation` reads and searches both `Observation` and `Vital Signs` rows together. A
+    Vital Signs row becomes one Observation with a `component` per measurement present
+    (temperature, pulse, respiratory rate, blood pressure, height, weight, BMI), not several
+    separate resources.
+servers:
+  - url: https://{host}
+    variables:
+      host:
+        default: frappehealth.localhost:8081
+
+security:
+  - apiKeyAuth: []
+
+paths:
+  /fhir/metadata:
+    get:
+      summary: CapabilityStatement
+      description: >
+        Describes what this server supports. Guest-accessible (no auth required) -- it's metadata
+        about the API, not patient data.
+      security: []
+      responses:
+        "200":
+          description: CapabilityStatement
+          content:
+            application/fhir+json:
+              schema:
+                $ref: "#/components/schemas/CapabilityStatement"
+
+  /fhir/{resourceType}/{id}:
+    get:
+      summary: Read a single resource by id
+      parameters:
+        - $ref: "#/components/parameters/ResourceType"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The resource
+          content:
+            application/fhir+json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/Patient"
+                  - $ref: "#/components/schemas/Encounter"
+                  - $ref: "#/components/schemas/Observation"
+                  - $ref: "#/components/schemas/Practitioner"
+                  - $ref: "#/components/schemas/MedicationRequest"
+                  - $ref: "#/components/schemas/DiagnosticReport"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /fhir/{resourceType}:
+    get:
+      summary: Search a resource type
+      description: >
+        Minimal FHIR search -- see each resource's supported params below. Not full FHIR search
+        grammar (no chaining, no _include/_revinclude, no modifiers).
+      parameters:
+        - $ref: "#/components/parameters/ResourceType"
+        - name: identifier
+          in: query
+          description: Patient only -- exact match on the Frappe document id.
+          schema:
+            type: string
+        - name: patient
+          in: query
+          description: "Encounter/Observation/MedicationRequest/DiagnosticReport only -- a `Patient/{id}` reference or bare id."
+          schema:
+            type: string
+        - name: _lastUpdated
+          in: query
+          description: "All resources -- e.g. `gt2026-01-01`. Only `gt`/`ge` prefixes are honored (translated to a >= filter)."
+          schema:
+            type: string
+        - name: _count
+          in: query
+          description: Page size. Default 50, max 200.
+          schema:
+            type: integer
+        - name: _offset
+          in: query
+          description: Page offset.
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Bundle of matching resources
+          content:
+            application/fhir+json:
+              schema:
+                $ref: "#/components/schemas/Bundle"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  parameters:
+    ResourceType:
+      name: resourceType
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [Patient, Encounter, Observation, Practitioner, MedicationRequest, DiagnosticReport]
+
+  securitySchemes:
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: >
+        Frappe API key/secret, NOT a bare token. Send the literal header value
+        `token <api_key>:<api_secret>` (OpenAPI's apiKey scheme can't model the compound
+        key:secret format natively, so this is spelled out here rather than left implicit).
+        Generate the pair from a dedicated "FHIR Integration"-role Integration User's
+        User form in Frappe Desk (API Access section) -- never a real staff account.
+
+  responses:
+    Unauthorized:
+      description: No/invalid Authorization header
+      content:
+        application/fhir+json:
+          schema:
+            $ref: "#/components/schemas/OperationOutcome"
+    Forbidden:
+      description: Authenticated, but the caller's role has no read permission on this resource type
+      content:
+        application/fhir+json:
+          schema:
+            $ref: "#/components/schemas/OperationOutcome"
+    NotFound:
+      description: Unknown resource type, or no record with that id
+      content:
+        application/fhir+json:
+          schema:
+            $ref: "#/components/schemas/OperationOutcome"
+
+  schemas:
+    CapabilityStatement:
+      type: object
+      description: >
+        Only the fields this gateway actually populates -- see
+        https://hl7.org/fhir/R4/capabilitystatement.html for the full resource definition.
+      properties:
+        resourceType:
+          type: string
+          enum: [CapabilityStatement]
+        status:
+          type: string
+        fhirVersion:
+          type: string
+        rest:
+          type: array
+          items:
+            type: object
+
+    Patient:
+      type: object
+      description: "Fields this gateway populates -- see https://hl7.org/fhir/R4/patient.html"
+      properties:
+        resourceType:
+          type: string
+          enum: [Patient]
+        id:
+          type: string
+        active:
+          type: boolean
+        identifier:
+          type: array
+          items:
+            type: object
+        name:
+          type: array
+          items:
+            type: object
+        gender:
+          type: string
+          enum: [male, female, other, unknown]
+        birthDate:
+          type: string
+          format: date
+        telecom:
+          type: array
+          items:
+            type: object
+
+    Encounter:
+      type: object
+      description: "Fields this gateway populates -- see https://hl7.org/fhir/R4/encounter.html"
+      properties:
+        resourceType:
+          type: string
+          enum: [Encounter]
+        id:
+          type: string
+        status:
+          type: string
+        class:
+          type: object
+        subject:
+          type: object
+        participant:
+          type: array
+          items:
+            type: object
+        period:
+          type: object
+
+    Observation:
+      type: object
+      description: "Fields this gateway populates -- see https://hl7.org/fhir/R4/observation.html"
+      properties:
+        resourceType:
+          type: string
+          enum: [Observation]
+        id:
+          type: string
+        status:
+          type: string
+        code:
+          type: object
+        subject:
+          type: object
+        category:
+          type: array
+          items:
+            type: object
+        effectiveDateTime:
+          type: string
+        valueQuantity:
+          type: object
+        valueString:
+          type: string
+        valueBoolean:
+          type: boolean
+        component:
+          type: array
+          description: Vital-Signs-sourced Observations only -- one entry per measurement present.
+          items:
+            type: object
+
+    Practitioner:
+      type: object
+      description: "Fields this gateway populates -- see https://hl7.org/fhir/R4/practitioner.html"
+      properties:
+        resourceType:
+          type: string
+          enum: [Practitioner]
+        id:
+          type: string
+        active:
+          type: boolean
+        name:
+          type: array
+          items:
+            type: object
+        gender:
+          type: string
+          enum: [male, female, other, unknown]
+        telecom:
+          type: array
+          items:
+            type: object
+        qualification:
+          type: array
+          items:
+            type: object
+
+    MedicationRequest:
+      type: object
+      description: "Fields this gateway populates -- see https://hl7.org/fhir/R4/medicationrequest.html"
+      properties:
+        resourceType:
+          type: string
+          enum: [MedicationRequest]
+        id:
+          type: string
+        status:
+          type: string
+        intent:
+          type: string
+        priority:
+          type: string
+        subject:
+          type: object
+        requester:
+          type: object
+        medicationCodeableConcept:
+          type: object
+        authoredOn:
+          type: string
+        dosageInstruction:
+          type: array
+          items:
+            type: object
+        dispenseRequest:
+          type: object
+        encounter:
+          type: object
+
+    DiagnosticReport:
+      type: object
+      description: "Fields this gateway populates -- see https://hl7.org/fhir/R4/diagnosticreport.html"
+      properties:
+        resourceType:
+          type: string
+          enum: [DiagnosticReport]
+        id:
+          type: string
+        status:
+          type: string
+        code:
+          type: object
+        subject:
+          type: object
+        performer:
+          type: array
+          items:
+            type: object
+        effectiveDateTime:
+          type: string
+        specimen:
+          type: array
+          items:
+            type: object
+
+    Bundle:
+      type: object
+      description: "searchset Bundle -- see https://hl7.org/fhir/R4/bundle.html"
+      properties:
+        resourceType:
+          type: string
+          enum: [Bundle]
+        type:
+          type: string
+          enum: [searchset]
+        total:
+          type: integer
+        entry:
+          type: array
+          items:
+            type: object
+        link:
+          type: array
+          items:
+            type: object
+
+    OperationOutcome:
+      type: object
+      description: "See https://hl7.org/fhir/R4/operationoutcome.html"
+      properties:
+        resourceType:
+          type: string
+          enum: [OperationOutcome]
+        issue:
+          type: array
+          items:
+            type: object
+            properties:
+              severity:
+                type: string
+              code:
+                type: string
+                enum: [login, forbidden, not-found, not-supported, invalid, exception]
+              diagnostics:
+                type: string

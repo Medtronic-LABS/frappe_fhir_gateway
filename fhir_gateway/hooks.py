@@ -8,7 +8,7 @@ app_license = "gpl-3.0"
 # Apps
 # ------------------
 
-# required_apps = []
+required_apps = ["healthcare"]
 
 # Each item in the list will be shown as an app in the apps page
 # add_to_apps_screen = [
@@ -82,6 +82,28 @@ app_license = "gpl-3.0"
 
 # automatically load and sync documents of this doctype from downstream apps
 # importable_doctypes = [doctype_1]
+
+# FHIR REST API
+# ------------------
+# Owns the /fhir/* path space with a custom page renderer -- website_route_rules only rewrites to
+# Frappe's own HTML page renderers (DocumentPage/WebFormPage/etc, see website/path_resolver.py),
+# none of which return raw JSON, and /api/* requests never reach the website router at all
+# (frappe/app.py dispatches them separately before get_response() runs). page_renderer is the
+# real, intended extensibility point for an app that wants to own an arbitrary path and return a
+# raw werkzeug Response -- see renderer.py.
+page_renderer = ["fhir_gateway.renderer.FHIRPageRenderer"]
+
+# Fixtures
+# ------------------
+# "FHIR Integration" role + its read-only Custom DocPerm grants on exactly the three doctypes this
+# gateway exposes (Patient, Patient Encounter, Observation) -- nothing else is reachable through
+# this role even if a client asks for it. Filtered (not bare doctype names): Role and Custom DocPerm
+# both have hundreds of unrelated site-wide records, so a bare name would make `bench
+# export-fixtures` dump every role/permission on the site into this app.
+fixtures = [
+	{"dt": "Role", "filters": [["name", "=", "FHIR Integration"]]},
+	{"dt": "Custom DocPerm", "filters": [["role", "=", "FHIR Integration"]]},
+]
 
 # Jinja
 # ----------

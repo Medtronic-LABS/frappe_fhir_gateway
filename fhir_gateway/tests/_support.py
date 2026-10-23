@@ -61,7 +61,17 @@ def ensure_company():
 				"country": country,
 			}
 		)
-		doc.insert(ignore_permissions=True)
+		# Company.on_update() otherwise creates a default chart of accounts and warehouses -- one of
+		# which (Goods In Transit) needs a "Warehouse Type: Transit" record that ERPNext only ever
+		# seeds via its interactive setup wizard (erpnext/setup/setup_wizard/operations/
+		# install_fixtures.py), never run on this headless site. This test Company exists only to
+		# satisfy a mandatory Link field; it has no interest in either.
+		previous = frappe.local.flags.ignore_chart_of_accounts
+		frappe.local.flags.ignore_chart_of_accounts = True
+		try:
+			doc.insert(ignore_permissions=True)
+		finally:
+			frappe.local.flags.ignore_chart_of_accounts = previous
 		return doc.name
 
 	return ensure_any("Company", create)

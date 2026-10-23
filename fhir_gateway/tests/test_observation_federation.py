@@ -9,7 +9,7 @@ import frappe
 from fhir_gateway.mappers import observation as obs_mapper
 from fhir_gateway.mappers import vital_signs as vs_mapper
 from fhir_gateway.router import SUPPORTED_RESOURCES
-from fhir_gateway.tests._support import make_patient
+from fhir_gateway.tests._support import ensure_company, make_patient
 
 
 class TestObservationFederation(unittest.TestCase):
@@ -38,12 +38,11 @@ class TestObservationFederation(unittest.TestCase):
 		return doc
 
 	def _make_observation(self, **fields):
-		company = frappe.get_all("Company", limit=1)
 		obs_template = frappe.get_all("Observation Template", limit=1)
 		values = {
 			"doctype": "Observation",
 			"patient": self.patient.name,
-			"company": company[0].name if company else None,
+			"company": ensure_company(),
 			"observation_category": "Laboratory",
 			"observation_template": obs_template[0].name if obs_template else None,
 		}

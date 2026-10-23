@@ -33,3 +33,48 @@ def make_practitioner(**fields):
 	doc = frappe.get_doc(values)
 	doc.insert(ignore_permissions=True)
 	return doc
+
+
+def ensure_any(doctype, creator):
+	"""Return the name of any existing record of `doctype`, or create one via `creator()` if none
+	exist. For reference/lookup data a test incidentally depends on (Company, Appointment Type,
+	Healthcare Practitioner) to satisfy a mandatory Link field -- the test doesn't care which one,
+	the same way a long-lived dev site always happens to have at least one lying around already.
+	A fresh CI site doesn't, so `frappe.get_all(doctype, limit=1)` alone silently returns nothing."""
+	existing = frappe.get_all(doctype, limit=1, pluck="name")
+	return existing[0] if existing else creator()
+
+
+def ensure_company():
+	def create():
+		# Country/Currency are seeded by Frappe core itself (country_info.json/currency_info.json --
+		# confirmed present in the hundreds on a fresh site), unlike Company, so picking any existing
+		# one is always safe here.
+		country = frappe.get_all("Country", limit=1, pluck="name")[0]
+		currency = frappe.get_all("Currency", limit=1, pluck="name")[0]
+		doc = frappe.get_doc(
+			{
+				"doctype": "Company",
+				"company_name": "FHIR Gateway Test Co",
+				"abbr": "FGTC",
+				"default_currency": currency,
+				"country": country,
+			}
+		)
+		doc.insert(ignore_permissions=True)
+		return doc.name
+
+	return ensure_any("Company", create)
+
+
+def ensure_practitioner():
+	return ensure_any("Healthcare Practitioner", lambda: make_practitioner().name)
+
+
+def ensure_appointment_type():
+	def create():
+		doc = frappe.get_doc({"doctype": "Appointment Type", "appointment_type": "FHIR Gateway Test Type"})
+		doc.insert(ignore_permissions=True)
+		return doc.name
+
+	return ensure_any("Appointment Type", create)

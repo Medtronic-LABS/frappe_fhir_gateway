@@ -6,7 +6,7 @@ import unittest
 import frappe
 
 from fhir_gateway.mappers import encounter as encounter_mapper
-from fhir_gateway.tests._support import make_patient
+from fhir_gateway.tests._support import ensure_appointment_type, ensure_practitioner, make_patient
 
 
 class TestEncounterMapper(unittest.TestCase):
@@ -23,15 +23,13 @@ class TestEncounterMapper(unittest.TestCase):
 		patient = make_patient(first_name="Enc Test")
 		self._docs.append(("Patient", patient.name))
 
-		practitioner = frappe.get_all("Healthcare Practitioner", limit=1)
-		appointment_type = frappe.get_all("Appointment Type", limit=1)
 		values = {
 			"doctype": "Patient Encounter",
 			"patient": patient.name,
-			"practitioner": practitioner[0].name if practitioner else None,
+			"practitioner": ensure_practitioner(),
 			"encounter_date": "2026-01-01",
 			"encounter_time": "10:00:00",
-			"appointment_type": appointment_type[0].name if appointment_type else None,
+			"appointment_type": ensure_appointment_type(),
 		}
 		values.update(fields)
 		doc = frappe.get_doc(values)

@@ -6,6 +6,7 @@ import unittest
 import frappe
 
 from fhir_gateway.mappers import diagnostic_report as dr_mapper
+from fhir_gateway.tests._support import make_patient
 
 
 class TestDiagnosticReportMapper(unittest.TestCase):
@@ -19,10 +20,7 @@ class TestDiagnosticReportMapper(unittest.TestCase):
 		frappe.db.commit()
 
 	def _make_report(self, **fields):
-		patient = frappe.get_doc(
-			{"doctype": "Patient", "sex": "Male", "first_name": "DR Test", "invite_user": 0}
-		)
-		patient.insert(ignore_permissions=True)
+		patient = make_patient(first_name="DR Test")
 		self._docs.append(("Patient", patient.name))
 
 		values = {"doctype": "Diagnostic Report", "patient": patient.name, "title": "Test Report"}

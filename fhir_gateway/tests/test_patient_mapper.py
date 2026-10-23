@@ -7,6 +7,7 @@ import unittest
 import frappe
 
 from fhir_gateway.mappers import patient as patient_mapper
+from fhir_gateway.tests._support import make_patient
 
 
 class TestPatientMapper(unittest.TestCase):
@@ -20,13 +21,7 @@ class TestPatientMapper(unittest.TestCase):
 		frappe.db.commit()
 
 	def _make_patient(self, **fields):
-		# invite_user=0: healthcare's own Patient controller auto-creates a linked User when
-		# `email` is set unless this is explicitly off -- a side effect this test has no interest
-		# in and that would otherwise leak a User record this tearDown doesn't clean up.
-		values = {"doctype": "Patient", "sex": "Male", "first_name": "Test", "invite_user": 0}
-		values.update(fields)
-		doc = frappe.get_doc(values)
-		doc.insert(ignore_permissions=True)
+		doc = make_patient(**fields)
 		self._docs.append(("Patient", doc.name))
 		return doc
 

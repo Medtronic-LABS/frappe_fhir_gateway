@@ -9,15 +9,13 @@ import frappe
 from fhir_gateway.mappers import observation as obs_mapper
 from fhir_gateway.mappers import vital_signs as vs_mapper
 from fhir_gateway.router import SUPPORTED_RESOURCES
+from fhir_gateway.tests._support import make_patient
 
 
 class TestObservationFederation(unittest.TestCase):
 	def setUp(self):
 		self._docs = []
-		self.patient = frappe.get_doc(
-			{"doctype": "Patient", "sex": "Male", "first_name": "Obs Fed Test", "invite_user": 0}
-		)
-		self.patient.insert(ignore_permissions=True)
+		self.patient = make_patient(first_name="Obs Fed Test")
 		self._docs.append(("Patient", self.patient.name))
 
 	def tearDown(self):

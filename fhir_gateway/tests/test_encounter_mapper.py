@@ -6,6 +6,7 @@ import unittest
 import frappe
 
 from fhir_gateway.mappers import encounter as encounter_mapper
+from fhir_gateway.tests._support import make_patient
 
 
 class TestEncounterMapper(unittest.TestCase):
@@ -19,10 +20,7 @@ class TestEncounterMapper(unittest.TestCase):
 		frappe.db.commit()
 
 	def _make_encounter(self, **fields):
-		patient = frappe.get_doc(
-			{"doctype": "Patient", "sex": "Male", "first_name": "Enc Test", "invite_user": 0}
-		)
-		patient.insert(ignore_permissions=True)
+		patient = make_patient(first_name="Enc Test")
 		self._docs.append(("Patient", patient.name))
 
 		practitioner = frappe.get_all("Healthcare Practitioner", limit=1)

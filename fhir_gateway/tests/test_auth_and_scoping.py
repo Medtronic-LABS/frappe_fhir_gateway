@@ -9,6 +9,7 @@ import unittest
 import frappe
 
 from fhir_gateway import router
+from fhir_gateway.tests._support import make_patient
 
 
 class TestAuthAndScoping(unittest.TestCase):
@@ -44,8 +45,7 @@ class TestAuthAndScoping(unittest.TestCase):
 		return user
 
 	def _make_patient(self):
-		doc = frappe.get_doc({"doctype": "Patient", "sex": "Male", "first_name": "Auth Test"})
-		doc.insert(ignore_permissions=True)
+		doc = make_patient(first_name="Auth Test")
 		self._docs.append(("Patient", doc.name))
 		return doc
 

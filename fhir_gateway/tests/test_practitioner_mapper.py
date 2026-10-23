@@ -5,6 +5,7 @@ import unittest
 import frappe
 
 from fhir_gateway.mappers import practitioner as practitioner_mapper
+from fhir_gateway.tests._support import make_practitioner
 
 
 class TestPractitionerMapper(unittest.TestCase):
@@ -18,10 +19,7 @@ class TestPractitionerMapper(unittest.TestCase):
 		frappe.db.commit()
 
 	def _make_practitioner(self, **fields):
-		values = {"doctype": "Healthcare Practitioner", "first_name": "Test", "status": "Active"}
-		values.update(fields)
-		doc = frappe.get_doc(values)
-		doc.insert(ignore_permissions=True)
+		doc = make_practitioner(**fields)
 		self._docs.append(("Healthcare Practitioner", doc.name))
 		return doc
 
